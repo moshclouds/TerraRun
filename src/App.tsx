@@ -12,7 +12,7 @@ function App() {
 
   return (
     <>
-      <div className='align_symbols'>
+      <div>
         <a href="" target="_blank">
           <img src={gcr} className="logo" alt="Vite logo" />
         </a>
@@ -23,7 +23,7 @@ function App() {
           <img src={gar} className="logo" alt="Vite logo" />
         </a>
       </div>
-      <div className='align_symbols'>
+      <div>
         <a href="" target="_blank">
           <img src={terraform_logo} className="logo" alt="Vite logo" />
         </a>
