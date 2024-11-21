@@ -1,0 +1,59 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: 'Authenticate to GCP'
+      id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_CREDS }}'
+
+    - name: Set up Cloud SDK
+      uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: 'Docker Auth To GAR'
+      run: |
+        gcloud auth configure-docker "${{secrets.GAR_REGION}}-docker.pkg.dev"
+
+    - name: Build Docker Image
+      run: |
+        DOCKER_TAG="${{ secrets.GAR_REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/${{ secrets.GAR_REPO_NAME }}/${{ secrets.GAR_IMAGE }}:${{ github.sha }}"
+        docker build --tag "${DOCKER_TAG}" .
+        docker push "${DOCKER_TAG}"
+
+    - name: Initialize Terraform
+      run: |
+        terraform init \
+          -backend-config="bucket=${{ secrets.TF_BUCKET }}"
+
+    - name:  Apply Terraform
+      run: terraform apply -auto-approve
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDS }}
+        TF_VAR_gcp_project_id: ${{ secrets.PROJECT_ID }} 
+        TF_VAR_gcp_region: ${{ secrets.GCP_REGION }} 
+        TF_VAR_cloud_run_location: ${{ secrets.GCR_REGION }}
+        TF_VAR_image_name: "${{ secrets.GAR_REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/${{ secrets.GAR_REPO_NAME }}/${{ secrets.GAR_IMAGE }}:${{ github.sha }}"
+        TF_VAR_cloud_run_container_port: ${{ secrets.GCR_PORT }}
+        TF_VAR_cloud_run_auths: ${{ secrets.GCR_AUTH }}
+        TF_VAR_cloud_run_invoker: ${{ secrets.GCR_ROLE }}
